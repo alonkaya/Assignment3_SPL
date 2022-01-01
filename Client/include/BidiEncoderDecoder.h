@@ -18,7 +18,7 @@ public:
     short getType(std::string MessageType);
     short bytesToShort (int startingPosition);
     void ShortToBytes(short num, std::vector<char> *bytesArr);
-    void popString();
+    std::string notificationType(char c);
 
 private:
     int length;

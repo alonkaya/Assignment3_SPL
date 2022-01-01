@@ -129,24 +129,6 @@ std::string BidiEncoderDecoder::encode(std::string message){
             encodedMessage += message;
             encodedMessage += '\0';
             encodedMessage += ';';
-//            while(message.size() != 0){
-//                //searching for the next username in the list
-//                first = message.find_first_of('|');
-//                //todo: check the encoderDecoder in java how it works to match with this encoder
-//                if(first != std::string::npos) {
-//                    encodedMessage += message.substr(0, first);
-//                    encodedMessage += '\0';
-//                    message = message.substr(first + 1);
-//                }
-//                // if it's the last one on the list
-//                else {
-//                    encodedMessage += message;
-//                    encodedMessage += '\0';
-//                    encodedMessage += ';';
-//                    message = "";
-//                }
-//
-//            }
             reset();
             return encodedMessage;
         case 9: //notification
@@ -181,26 +163,83 @@ std::string BidiEncoderDecoder::decodeNextByte(char nextByte) {
         return "";
 
     }
-    if(length > 3) {
-        if (opCode == 11) {
-            messageType = bytesToShort(2);
-            std::string ans = "ERROR " + std::to_string(messageType);
+    if(opCode == 9 & length > 2) {
+        char type = bytesVector[2];
+        if(nextByte != '\0' | nextByte != ';'){
+            bytesVector.push_back(nextByte);
+            length++;
+            position++;
+            return "";
+        }
+        else if(nextByte != ';'){
+            std::string s(bytesVector.begin(),bytesVector.end());
+            s = s.substr(3 + position);
+            stringVector.push_back(s);
+            return "";
+        } else {
+            std::string ans = "";
+            ans += "NOTIFICATION " + notificationType(type) + " " + stringVector[0] + " " + stringVector[1];
             reset();
             return ans;
         }
-        if (opCode == 10) {
+    }
+    else if(length > 3 & opCode != 9) {
+        if(messageType == 0)
             messageType = bytesToShort(2);
-            if(nextByte != '\0') {
-                bytesVector.push_back(nextByte);
+        if (opCode == 11) { //error
+            std::string ans = "11 " + std::to_string(messageType);
+            reset();
+            return ans;
+        }
+        if (opCode == 10) { //ack
+            if (messageType == 4) { //follow
+                if (nextByte != '\0' & nextByte != ';') {
+                    bytesVector.push_back(nextByte);
+                    length++;
+                    return "";
+                } else {
+                    std::string allBytes(bytesVector.begin(), bytesVector.end());
+                    std::string ans = "10 " + std::to_string(messageType) + " " + allBytes.substr(4);
+                    reset();
+                    return ans;
+                }
             }
-            else {
-                std::string ans = "ACK " + messageType + 
+            if(messageType == 7 || messageType == 8) { //logStat, stat
+                if(nextByte != ';' & nextByte != '\0') {
+                    bytesVector.push_back(nextByte);
+                    length++;
+                    return "";
+                }
+                else  if(nextByte != ';'){
+                    short age = bytesToShort(length - 8);
+                    short NumPosts = bytesToShort(length - 6);
+                    short NumFollowers = bytesToShort(length - 4);
+                    short NumFollowing = bytesToShort(length - 2);
+                    std::string user = std::to_string(age) + " "
+                                       + std::to_string(NumPosts) + " "
+                                       + std::to_string(NumFollowers) + " "
+                                       + std::to_string(NumFollowing) + '\n';
+                    stringVector.push_back(user);
+                    return "";
+                }
+                else {
+                    std::string ans = "";
+                    for(int i = 0; i < stringVector.size(); i++){
+                        ans += "10 " + std::to_string(messageType) + " " + stringVector[i];
+                    }
+                    reset();
+                    return ans;
+                }
             }
+            std::string ans = "";
+            ans = "10 " + std::to_string(messageType);
+            return ans;
         }
 
+    } else {
+        bytesVector.push_back(nextByte);
+        length++;
     }
-    bytesVector.push_back(nextByte);
-    length++;
     return "";
 }
 
@@ -216,7 +255,14 @@ std::string BidiEncoderDecoder::decodeNextByte(char nextByte) {
 
 
 
-
+std::string BidiEncoderDecoder::notificationType(char c){
+    if (c == '1') {
+        return "Public";
+    }
+    else {
+        return "PM";
+    }
+}
 
 
 
