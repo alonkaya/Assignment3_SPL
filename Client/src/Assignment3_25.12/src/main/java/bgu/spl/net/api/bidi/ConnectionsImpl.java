@@ -24,8 +24,10 @@ public class ConnectionsImpl<T> implements Connections<T> {
     private HashMap<Integer, ConcurrentLinkedQueue<PMMessage>> PMMessageMap; //for each client hold PMs he sent
     private HashMap<Integer, ConcurrentLinkedQueue<NotificationMessage>> waitingNotifications; //notifications waiting to be sent
 
+    private String[] wordsToFilter = {"Luke", "I", "am", "your", "father"};
     private AtomicInteger id;
 
+    //todo: make singelton
     public ConnectionsImpl(){
         connectionHandlerMap = new ConcurrentHashMap<>();
         id = new AtomicInteger();
@@ -91,5 +93,24 @@ public class ConnectionsImpl<T> implements Connections<T> {
     public ConcurrentLinkedQueue<NotificationMessage> getWaitingNotifications(int id){return waitingNotifications.get(id);}
     public void addWaitingNotification(int id, NotificationMessage message){waitingNotifications.get(id).add(message);}
 
+
+    public String filter(String content){
+        String[] contentWords = content.split(" "); //string to array of words
+        String filteredContent = "";
+
+        for(String word : contentWords){//go through each word in content
+            boolean filter = false;
+            for(String filteredWord : wordsToFilter) //check if word is in filtered list
+                if (word.equals(filteredWord)) {
+                    filter = true;
+                    break;
+                }
+            if(filter)
+                filteredContent = filteredContent + "<filter> ";
+            else
+                filteredContent = filteredContent + word + " ";
+        }
+        return filteredContent;
+    }
 
 }

@@ -16,7 +16,7 @@ public class BidiMessagingProtocolImpl implements BidiMessagingProtocol<Message>
     private int id;
     private ConnectionsImpl<Message> connections;
     private Client client;
-    private String[] wordsToFilter = {"Luke", "I", "am", "your", "father"};
+
     private boolean terminate = false;
 
 
@@ -91,7 +91,10 @@ public class BidiMessagingProtocolImpl implements BidiMessagingProtocol<Message>
             int follow  = ((FollowMessage)message).getFollow();
             String username = ((FollowMessage)message).getUsername();
             Client toFollow = connections.getClient(username);
-
+            //todo: if client a commands to follow client b, and right after client b sends a block command to block client a,
+            // then a problem that might happen is we go into the follow process here in the protocol, but now a content switch
+            //happens and client b blocks client a, then the next if would be false even though the follow command happened
+            //before the block.
             if(follow == 0){ //Follow
                 //succeeds if client exists, logged in, not already following this user, and not blocked by this requested user.
                 if(toFollow != null && client.isLoggedIn() && !client.isFollowing(username) && toFollow.isUserBlocked(client)){
@@ -148,7 +151,7 @@ public class BidiMessagingProtocolImpl implements BidiMessagingProtocol<Message>
 
                 Client recipient = connections.getClient(username);
                 if(recipient != null && client.isFollowing(username)){//If recipient exists and our client is following him
-                    String filteredContent = filter(content);
+                    String filteredContent = connections.filter(content);
                     NotificationMessage notificationMessage = new NotificationMessage(0, client, filteredContent);
                     sendNotificationMessage(recipient, notificationMessage);
                     connections.addPM(id, (PMMessage)message);
@@ -162,9 +165,11 @@ public class BidiMessagingProtocolImpl implements BidiMessagingProtocol<Message>
         else if(opcode == 7){
             if(client.isLoggedIn()){
                 reply = new AckMessage((short) 7);
-                //todo: i need to go through all logged in clients(whether through the connectionHandlerMap or the clients queue,
-                // but even though they are concurrent, some clients logged in state might state from the Logstat command to the getter
-                for(Client clientToStat : connections.getClients()){
+                //todo: even though the client list is concurrent, there might be a problem if we get to this line and then a context
+                //switch happens and some client has logged in or out. now the list is different from the one that existed when
+                // this client sent this logstat command
+                ConcurrentLinkedQueue<Client> clients = connections.getClients();
+                for(Client clientToStat : clients){
                     //parsing through all logged in clients
                     if (clientToStat.isLoggedIn() && clientToStat != client){
                         reply = new AckMessage((short) 7);
@@ -230,23 +235,6 @@ public class BidiMessagingProtocolImpl implements BidiMessagingProtocol<Message>
         else
             connections.addWaitingNotification(client.getId(), message);
     }
-    public String filter(String content){
-        String[] contentWords = content.split(" "); //string to array of words
-        String filteredContent = "";
 
-        for(String word : contentWords){//go through each word in content
-            boolean filter = false;
-            for(String filteredWord : wordsToFilter) //check if word is in filtered list
-                if (word.equals(filteredWord)) {
-                    filter = true;
-                    break;
-                }
-            if(filter)
-                filteredContent = filteredContent + "<filter> ";
-            else
-                filteredContent = filteredContent + word + " ";
-        }
-        return filteredContent;
-    }
 }
 

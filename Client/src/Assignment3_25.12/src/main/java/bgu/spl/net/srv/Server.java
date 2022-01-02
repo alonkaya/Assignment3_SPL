@@ -49,11 +49,12 @@ public interface Server<T> extends Closeable {
      * @return A new reactor server
      */
     public static <T> Server<T> reactor(
+            ConnectionsImpl<T> connections,
             int nthreads,
             int port,
-            Supplier<MessagingProtocol<T>> protocolFactory,
+            Supplier<BidiMessagingProtocol<T>> protocolFactory,
             Supplier<MessageEncoderDecoder<T>> encoderDecoderFactory) {
-        return new Reactor<T>(nthreads, port, protocolFactory, encoderDecoderFactory);
+        return new Reactor<T>(connections, nthreads, port, protocolFactory, encoderDecoderFactory);
     }
 
 }
